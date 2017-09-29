@@ -38,7 +38,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'django_git_lfs',
+    'git_lfs_server',
 )
 
 MIDDLEWARE_CLASSES = (

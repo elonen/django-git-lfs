@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-import django_git_lfs.models
+import git_lfs_server.models
 import django.utils.timezone
 from django.conf import settings
 
@@ -19,8 +19,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('expires', models.DateTimeField(default=django_git_lfs.models.default_expiration)),
-                ('token', models.CharField(default=django_git_lfs.models.generate_unique_access_token, unique=True, max_length=32)),
+                ('expires', models.DateTimeField(default=git_lfs_server.models.default_expiration)),
+                ('token', models.CharField(default=git_lfs_server.models.generate_unique_access_token, unique=True, max_length=32)),
                 ('allow_read', models.BooleanField(default=False)),
                 ('allow_write', models.BooleanField(default=False)),
             ],
@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='lfsobject',
             name='repositories',
-            field=models.ManyToManyField(to='django_git_lfs.LfsRepository'),
+            field=models.ManyToManyField(to='git_lfs_server.LfsRepository'),
         ),
         migrations.AddField(
             model_name='lfsobject',
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='lfsaccess',
             name='repository',
-            field=models.ForeignKey(to='django_git_lfs.LfsRepository'),
+            field=models.ForeignKey(to='git_lfs_server.LfsRepository'),
         ),
         migrations.AddField(
             model_name='lfsaccess',

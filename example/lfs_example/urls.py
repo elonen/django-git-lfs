@@ -7,5 +7,5 @@ urlpatterns = [
     # url(r'^blog/', include('blog.urls')),
 
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^lfs/', include('django_git_lfs.urls')),
+    url(r'^lfs/info/', include('git_lfs_server.urls')),
 ]

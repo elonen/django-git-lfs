@@ -7,7 +7,7 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('django_git_lfs', '0001_initial'),
+        ('git_lfs_server', '0001_initial'),
     ]
 
     operations = [
