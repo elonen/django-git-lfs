@@ -181,7 +181,7 @@ class ObjectUploadView(JsonUtilsMixin, View):
     and if it matches, make it available for download.
     If not, just delete it and return an error.
     '''
-    CHUNK_SIZE = 64 * 1024
+    CHUNK_SIZE = 1024 * 1024
     def put(self, request, *args, **kwargs):
         f = None
         try:

@@ -1,7 +1,7 @@
 import os, re
 from django.http import JsonResponse
 import django.conf
-import lfs_example
+from django.conf import settings
 
 class LfsError(Exception):
 
@@ -29,7 +29,7 @@ def validate_oid(oid: str):
 
 
 def get_env_or_django_conf(conf_key: str, required=True) -> str:
-    res = os.environ.get(conf_key) or lfs_example.settings.__dict__.get(conf_key)
+    res = os.environ.get(conf_key) or settings.__dict__.get(conf_key)
     if not res and required:
         raise LfsError("Configuration error: LFS variable '%s' not configured." % str(conf_key), status_code=500)
     return res
