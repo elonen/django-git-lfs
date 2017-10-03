@@ -16,6 +16,14 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+import logging
+
+logging.basicConfig(
+    level = logging.DEBUG,
+    format = "[%(levelname)s %(name)s]: %(message)s",
+)
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -38,7 +46,8 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'git_lfs_server',
+    #'git_lfs_server',
+    'djlfs_batch'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -104,3 +113,5 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 LFS_PERMS_TOKEN = 'b85xBOWmE9syeSaj'
+
+DJLFS_BATCH_LOCAL_STORAGE_DIR = "test_temp/lfs_storage_dir"

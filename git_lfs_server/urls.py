@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from . import views
 
-
+app_name = 'git_lfs_server'
 urlpatterns = [
     # Base URL
     url(r'^$', views.object_upload_init, name='lfs_base'),  # Does allow upload init, too

@@ -1,1 +1,4 @@
 /example/db.sqlite3
+__pycache__
+_py_env
+test_temp
