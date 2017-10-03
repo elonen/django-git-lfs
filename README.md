@@ -1,31 +1,29 @@
-# Django app git_lfs_server
+# DJLFS -- Git LFS (batch API) implementation in Django
 
-This is a ~proof of concept~ simple but working git-lfs storage server implementation, see:
-
-* https://github.com/blog/1986-announcing-git-large-file-storage-lfs
-* https://github.com/github/git-lfs
-* https://github.com/github/git-lfs/blob/master/docs/api.md
+This is a Django implementation of Git LFS server. It supports basic upload / download through the _batch API_.
 
 ## Quick start
 
 1. Install Python 3 (including `pyvenv` command)
-2. Run ./setup_and_run.sh
+2. Run `./setup_and_run.sh`
+3. If the server starts ok, hit CTRL-Z and put it background with `bg`
+4. Run `test_git_lfs.sh` to test upload and download with git LFS client
 
-## TODO, missing features
+## Features
 
-* Secure perms handler for adding new access tokens
-* Returning the correct HTTP status codes for responses
-* Tests and documentation
-* Anything besides beeing a proof of concept ;-)
+* Batch server requires no' 'database for basic upload / download, just a local directory for file storage.
 
-## Done
+## Implementation status
 
-* Authentication
-* Bind this to any real world usage -> See https://github.com/ddanier/gitolite-git-lfs
+* Batch API works and can be used as a LTFS backend.
+* Locking API is not yet implemented.
 
-## Why a Django based implementation?
+This is a fork of *ddanier/django-git-lfs*, but I'm probably going to *remove all auth code*. My plan is to make this a functional LFS backend for an environment where Apache / Nginx is doing all the authentication (for multiple repositories).
 
-* Runs on many setups, with many webservers, with many databases, with many …
-* Reusable app, so this may be part of some bigger project
-* May use Django storage backends (Amazon S3, Dropbox, …), see https://www.djangopackages.com/grids/g/storage-backends/
-* I personally like it :)
+## LFS specs
+
+See:
+
+* https://github.com/blog/1986-announcing-git-large-file-storage-lfs
+* https://github.com/github/git-lfs
+* https://github.com/github/git-lfs/blob/master/docs/api.md
