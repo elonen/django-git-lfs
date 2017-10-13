@@ -107,3 +107,4 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 DJLFS_BATCH_LOCAL_STORAGE_DIR = "test_temp/lfs_storage_dir"
+# DJLFS_BATCH_ALLOW_LOCAL_FS_DOWNLOAD_WITHOUT_TOKEN = True

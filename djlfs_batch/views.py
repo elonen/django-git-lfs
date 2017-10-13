@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django.views.generic.detail import BaseDetailView
 
-from .utils import LfsError, validate_oid, get_env_or_django_conf
+from .utils import LfsError, validate_oid, get_env_or_django_conf, verify_token, make_token
 from .storage_filesys import LocalFileStorage
 
 import logging
@@ -62,6 +62,7 @@ class ActionInitView(JsonUtilsMixin, View):
                 raise LfsError("Unsupported transfer method list. This serrver only supports 'basic'.", status_code=501)
 
             storage = LocalFileStorage()
+            expire_secs = get_env_or_django_conf('DJLFS_BATCH_TOKEN_EXPIRE_SECS', required=False) or 60*15
 
             # Handle all OID requests in sequence
             res_objects = []
@@ -101,14 +102,17 @@ class ActionInitView(JsonUtilsMixin, View):
                     open_mode = 'r' if op=='download' else 'w'
                     as_url = storage.open_as_url(oid, open_mode)
 
+                    auth_headers = { 'lfs-batch-token': make_token(op, expire_secs, oid[:16]) }
+
                     if as_url is not None:
                         # URL (HTTP server)
                         logger.debug('open_as_url returned OK: ' + str(as_url))
+                        auth_headers.update(as_url[1]) # add possible extra headers
                         res['actions'] = {
                             op: {
                                 'href': as_url[0],
-                                'header': as_url[1],
-                                'expires_in': int(60*60*24),  # actually never
+                                'header': auth_headers,
+                                'expires_in': expire_secs,  # actually never
                                 }
                             }
                     else:
@@ -122,7 +126,8 @@ class ActionInitView(JsonUtilsMixin, View):
                         res['actions'] = {
                             op: {
                                 'href': self.request.build_absolute_uri(reverse(action_view, kwargs={"oid": oid})),
-                                'expires_in': int(60*60*24),  # actually never
+                                'header': auth_headers,
+                                'expires_in': expire_secs,
                                 }
                             }
 
@@ -165,6 +170,8 @@ class ObjectDownloadView(JsonUtilsMixin, View):
     def get(self, request, *args, **kwargs):
         try:
             oid = self.kwargs.get('oid', '')
+            if not get_env_or_django_conf('DJLFS_BATCH_ALLOW_LOCAL_FS_DOWNLOAD_WITHOUT_TOKEN', required=False):
+                verify_token(request, 'download', oid)
             f = LocalFileStorage().open_as_file(oid, 'r')
             return FileResponse(f[0])
         except LfsError as e:
@@ -186,6 +193,7 @@ class ObjectUploadView(JsonUtilsMixin, View):
         f = None
         try:
             oid = self.kwargs.get('oid', '')
+            verify_token(request, 'upload', oid)
             f = LocalFileStorage().open_as_file(oid, 'w')
 
             chunk = True
@@ -219,3 +227,20 @@ class ObjectUploadView(JsonUtilsMixin, View):
 
 batch_upload = csrf_exempt(ObjectUploadView.as_view())
 
+
+class ObjectCheckTokenView(JsonUtilsMixin, View):
+    '''
+    Only validate token from header and return status 200 if ok,
+    or an error code if not. This is intended to be
+    used as an external HTTP auth handler for Nginx or such.
+    '''
+    def get(self, request, *args, **kwargs):
+        try:
+            mode = self.kwargs.get('mode', '')
+            verify_token(request, mode)
+            return HttpResponse()   # just return status 200 if token is ok
+        except LfsError as e:
+            logger.error('Catched LfsError: %s' % str(e))
+            return e.as_http_response()
+
+check_token = csrf_exempt(ObjectCheckTokenView.as_view())
