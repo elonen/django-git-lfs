@@ -102,7 +102,7 @@ class ActionInitView(JsonUtilsMixin, View):
                     open_mode = 'r' if op=='download' else 'w'
                     as_url = storage.open_as_url(oid, open_mode)
 
-                    auth_headers = { 'lfs-batch-token': make_token(op, expire_secs, oid[:16]) }
+                    auth_headers = { 'lfs-batch-token': make_token(op, expire_secs) }
 
                     if as_url is not None:
                         # URL (HTTP server)
@@ -169,9 +169,9 @@ class ObjectDownloadView(JsonUtilsMixin, View):
     '''
     def get(self, request, *args, **kwargs):
         try:
-            oid = self.kwargs.get('oid', '')
             if not get_env_or_django_conf('DJLFS_BATCH_ALLOW_LOCAL_FS_DOWNLOAD_WITHOUT_TOKEN', required=False):
-                verify_token(request, 'download', oid)
+                verify_token(request, 'download')
+            oid = self.kwargs.get('oid', '')
             f = LocalFileStorage().open_as_file(oid, 'r')
             return FileResponse(f[0])
         except LfsError as e:
@@ -193,7 +193,7 @@ class ObjectUploadView(JsonUtilsMixin, View):
         f = None
         try:
             oid = self.kwargs.get('oid', '')
-            verify_token(request, 'upload', oid)
+            verify_token(request, 'upload')
             f = LocalFileStorage().open_as_file(oid, 'w')
 
             chunk = True
@@ -236,8 +236,8 @@ class ObjectCheckTokenView(JsonUtilsMixin, View):
     '''
     def get(self, request, *args, **kwargs):
         try:
-            mode = self.kwargs.get('mode', '')
-            verify_token(request, mode)
+            op = self.kwargs.get('op', '')
+            verify_token(request, op)
             return HttpResponse()   # just return status 200 if token is ok
         except LfsError as e:
             logger.error('Catched LfsError: %s' % str(e))

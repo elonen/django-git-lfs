@@ -1,4 +1,4 @@
-import os, re, time, datetime
+import os, re, time, datetime, hashlib
 from django.http import JsonResponse
 import jwt, django.conf
 from django.conf import settings
@@ -39,23 +39,30 @@ def get_env_or_django_conf(conf_key: str, required=True) -> str:
         raise LfsError("Configuration error: LFS variable '%s' not configured." % str(conf_key), status_code=500)
     return res
 
-def make_token(op, valid_secs=60*60*24, oid=None):
+def _token_subject(op):
+    '''
+    Create a repository specific 'subject' for the token. This allows using the same
+    django instance for different repositories (by only changing some environment variable
+    between calls), and using a separate access token for each one.
+    '''
     assert(op in ('download', 'upload'))
-    payload = {'sub': op, 'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=30)}
-    if oid:
-        payload['oid'] = oid
+    configs_str = '%s\0%s\0%s' % (
+        get_env_or_django_conf('DJLFS_BATCH_LOCAL_STORAGE_DIR', required=False),
+        get_env_or_django_conf('DJLFS_BATCH_LOCAL_STORAGE_HTTP_URL_TEMPLATE_GET', required=False),
+        get_env_or_django_conf('DJLFS_BATCH_LOCAL_STORAGE_HTTP_URL_TEMPLATE_PUT', required=False))
+    return '%s-%s' % (op, hashlib.md5(configs_str.encode()).hexdigest()[:8])
+
+def make_token(op, valid_secs=60*60*24):
+    payload = {'sub': _token_subject(op), 'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=30)}
     return jwt.encode(payload, settings.SECRET_KEY).decode('ascii')
 
-def verify_token(request, op, oid=None):
+def verify_token(request, op):
     assert(op in ('download', 'upload'))
     try:
         token = request.META['HTTP_LFS_BATCH_TOKEN']
         payload = jwt.decode(token, settings.SECRET_KEY)
-        if payload['sub'] != op:
+        if payload['sub'] != _token_subject(op):
             raise LfsError('Mismatching token subject (was %s, expected %s)' % (str(payload['sub']), str(op)), status_code=401)
-        if oid != None:
-            if not oid.startswith(payload['oid']):
-                raise LfsError('Mismatching token oid (was %s, expected %s)' % (str(payload['oid']), str(oid)), status_code=401)
     except KeyError as e:
         raise LfsError('Auth token missing', status_code=401)
     except jwt.ExpiredSignatureError as e:
