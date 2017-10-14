@@ -20,7 +20,7 @@ This option does a little more thorough tests than WSGI one, as it has direct ac
 1. Install Vagrant
 2. `cd wsgi-test && vagrant up`
 3. Open http://127.0.0.1:8000/ in a browser. You should see Debian/Apache default "It worked!" page (served from inside Vagrant VM).
-4. `cd.. ; ./test_git_lfs.sh http://127.0.0.1:8000/repo1`
+4. `cd.. ; ./test_git_lfs.sh http://127.0.0.1:8000/git/repo1`
 
 You can repeat the last step for `repo2` and `repo3` if you wish – the included server configuration supports multiple repositories, and stores their large files in separate directories. Do `vagrant ssh` from _wsgi-test_ directory, and look in `/opt/`.
 
