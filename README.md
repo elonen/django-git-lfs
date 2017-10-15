@@ -15,29 +15,42 @@ The easiest way to get rolling is running the automated tests. I'm developing on
 
 This option does a little more thorough tests than WSGI one, as it has direct access to the LFS storage dir it creates in `test_temp/lfs_storage_dir/tmp` (peek in after running the test to see how the files are stored). It only supports one repository, though.
 
-### OPTION 2: Run test with WSGI / Apache 2.4 using Vagrant
+### OPTION 2: Run test with NGINX + uWSGI using Vagrant
 
 1. Install Vagrant
 2. `cd wsgi-test && vagrant up`
-3. Open http://127.0.0.1:8000/ in a browser. You should see Debian/Apache default "It worked!" page (served from inside Vagrant VM).
+3. Open http://127.0.0.1:8000/ in a browser. You should see Debian/NGINX default page (served from inside Vagrant VM).
 4. `cd.. ; ./test_git_lfs.sh http://127.0.0.1:8000/git/repo1`
 
-You can repeat the last step for `repo2` and `repo3` if you wish – the included server configuration supports multiple repositories, and stores their large files in separate directories. Do `vagrant ssh` from _wsgi-test_ directory, and look in `/opt/`.
+You can repeat the last step for `repo2` and `repo3` if you wish – the included server configuration supports multiple repositories, and stores their large files in separate directories. Do `vagrant ssh` from _wsgi-test_ directory, and look in `/opt/` to see what they look like.
 
 ## Features
 
 * Batch server only needs a directory for storing files, **no database**
-* By design, **no authentication or HTTPS** – this is intended as a web server backend with auth handled by HTTPD
+* By design, **no authentication, repository management or HTTPS** – this is intended as a web server backend with security mostly handled by HTTPD
 
-## Installing on Apache
+## Installing on NGINX
 
-See `wsgi-test/vagrant_bootstrap.sh` to see how to set up the server from scratch on a vanilla Debian Stretch (with _git-lfs_ package picked from Buster). Then see `wsgi-test/lfs_example_apache_site.conf` for an example configuration file for Apache 2.4.
+See `wsgi-test/vagrant_bootstrap.sh` to see how to set up the server from scratch on a vanilla Debian Stretch (with _git-lfs_ package picked from Buster). Then see `wsgi-test/lfs_example_nginx_site` for an example configuration file.
 
-They set up a Git for multiple repositories over HTTP (Apache) as well as the LFS server, but you can fully well omit it and only use the LFS server if you wish.
+The example sets up a Git server for multiple repositories over HTTP (NGINX + fastcgi + git-http-backend) as well as the LFS server, but you can fully well omit it, and only use the LFS server if you wish.
+
+## Multiple repository support
+
+The LFS batch server always thinks it's serving files to/from a single LFS repository. Separating them happens on HTTPD. See `wsgi-test/lfs_example_nginx_site` for an example. It extracts repository name from request URL and sets two environment variables before calling the Django app:
+
+* `DJLFS_BATCH_LOCAL_STORAGE_DIR` – Directory where current LFS repository's content is stored. 
+* `DJLFS_BATCH_LOCAL_STORAGE_HTTP_URL_TEMPLATE_GET` – An URL template to _GET_ LFS objects directly through NGINX, bypassing Django for superior performance. The NGINX configuration example shows how to make it efficiently block download attempts that aren't initiated by the LFS batch request.
+
+## Checking user authorization
+
+Like authentication, this is also left to the HTTPD.
+
+It sufficies to check authorization for a POST to the batch initialization URI, `/info/lfs/objects/batch`. It provides Git LFS client with a temporary token (in JWT format), that object GET and PUT handlers then check before allowing download or upload.
 
 ## Implementation status
 
-* Batch API works and can be used as an LFS server
+* Batch API works and can be used as a Git LFS server
 * Locking API is not implemented, at least yet
 
 This is a fork of https://github.com/ddanier/django-git-lfs , but I'm most likely going to *remove all auth code*.

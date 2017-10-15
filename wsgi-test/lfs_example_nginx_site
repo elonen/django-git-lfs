@@ -1,0 +1,104 @@
+# Setup cache for authorization
+proxy_cache_path /opt/lfs_batch_authz_ngix.cache levels=1:2 keys_zone=LFS_AUTHZ_CACHE:16m inactive=60m;
+
+# Extract repository name (for checking authorization)
+map $request_uri $GIT_REPO_NAME {
+    ~/git/(?<rn>[0-9a-zA-Z_\ ,+()-]+)/  $rn;
+}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    charset utf-8;
+    
+    server_name         lfs;
+    set $GIT_ROOT       /opt/git_repos;
+    set $LFS_ROOT       /opt/lfs_storages;
+    set $PUB_URL        http://127.0.0.1:8000;
+    set $UWSGI_SOCKET   unix:///tmp/uwsgi.sock;
+
+    location ~ /git/(?<reponame>[0-9a-zA-Z_\ ,+()-]+)(\.git)?/(?<afterrepo>.*)$ {
+
+        # NOTE: Perform real authentication and authorization at this point in production
+
+        # Basic Git
+        # ----------------------------------
+
+        # Static repo files for cloning
+        location ~ ^/git/[^./]+(\.git)?/objects/([0-9a-f]+/[0-9a-f]+|pack/pack-[0-9a-f]+.(pack|idx))$ {
+            alias $GIT_ROOT/$reponame.git/$afterrepo;
+        }
+
+        # Requests to git-http-backend
+        location ~ ^/git/[^./]+(\.git)?/(HEAD|info/refs|objects/info/.*|git-(upload|receive)-pack)$ {
+            include           /etc/nginx/fastcgi_params;
+            fastcgi_param     SCRIPT_FILENAME         /usr/lib/git-core/git-http-backend;
+            fastcgi_param     PATH_INFO               /$afterrepo;
+            fastcgi_param     GIT_PROJECT_ROOT        $GIT_ROOT/$reponame.git;
+            fastcgi_param     GIT_HTTP_EXPORT_ALL     "";
+          # fastcgi_param     REMOTE_USER             $remote_user;
+            fastcgi_param     REMOTE_USER             test.user;
+            fastcgi_pass      unix:/var/run/fcgiwrap.socket;
+        }
+
+        # Git LFS Batch API
+        # ----------------------------------
+
+        location ~ ^/git/[^./]+(\.git)?/info/lfs/(?<lfsreq>.*)$ {
+
+            # No gzip for downloads
+            if ($request_method = GET ) {
+                gzip             off;
+            }
+
+            # Serve object downloads directly with Nginx
+            location ~ ^/git/[^./]+(\.git)?/info/lfs/objects/direct_get/([a-f0-9/]*)$ {
+
+                # ...but authorize with token from batch init first
+                auth_request     /auth/lfs/download;
+                error_page       403 /auth/lfs/download;  # Show errors
+
+                alias            $LFS_ROOT/$reponame/$2;
+               #access_log       off;
+                expires          max;
+            }
+
+            # Otherwise go through Django, uncached
+            location ~ .* {
+                rewrite         ^/git/[^./]+(\.git)?/(.+) /$2 break;
+                include         /etc/nginx/uwsgi_params;
+                client_max_body_size           0;      # Disable max size check
+                uwsgi_request_buffering        off;    # Use streaming upload
+
+                uwsgi_param     SCRIPT_NAME                     /git/$reponame;
+                uwsgi_param     DJLFS_BATCH_LOCAL_STORAGE_DIR   $LFS_ROOT/$reponame;
+
+                # Serve LFS objects directly from Nginx, taking load off Django. Set empty to disable.
+                uwsgi_param     DJLFS_BATCH_LOCAL_STORAGE_HTTP_URL_TEMPLATE_GET
+                                "$PUB_URL/git/$reponame/info/lfs/objects/direct_get/{oid[0]}{oid[1]}/{oid[2]}{oid[3]}/{oid}";
+
+                uwsgi_pass      $UWSGI_SOCKET;
+            }
+        }
+    }
+
+    # Auth handler for direct LFS object downloads
+    # ------------------------------------------------------
+    location = /auth/lfs/download {
+        internal;
+
+        # Ask Django app to check for a batch token...
+        proxy_pass              $scheme://127.0.0.1:$server_port/git/$GIT_REPO_NAME/info/lfs/objects/check-token/download;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+        #proxy_set_header       X-Original-URI $request_uri;
+
+        # ...and cache successful check to avoid a Django call on each LFS object download.
+        proxy_ignore_headers    X-Accel-Expires Expires Cache-Control;
+        proxy_cache             LFS_AUTHZ_CACHE;
+        proxy_cache_key         "download$remote_user$GIT_REPO_NAME";
+        proxy_cache_valid       200  60s;
+        proxy_cache_lock        on;
+        proxy_cache_use_stale   updating;
+    }
+}

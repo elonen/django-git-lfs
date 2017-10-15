@@ -106,5 +106,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+# Setup support for proxy headers
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
 DJLFS_BATCH_LOCAL_STORAGE_DIR = "test_temp/lfs_storage_dir"
 # DJLFS_BATCH_ALLOW_LOCAL_FS_DOWNLOAD_WITHOUT_TOKEN = True

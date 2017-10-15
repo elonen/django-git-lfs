@@ -5,9 +5,10 @@ set -e
 echo "Installing APT packages..."
 
 # Requirements
-echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+echo "deb http://deb.debian.org/debian buster main" > /etc/apt/sources.list.d/buster.list
+export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get -y -t stretch install python3-venv python3-pip apache2 libapache2-mod-wsgi-py3 curl
+apt-get -y -t stretch install python3-venv python3-pip nginx fcgiwrap curl supervisor
 apt-get -y -t buster install git-lfs
 
 echo "Creating virtualenv..."
@@ -18,6 +19,10 @@ test -e "$VENV/bin/pip" || { echo "FATAL: missing pip from venv!"; exit 1; }
 
 echo "Installing dependencies..."
 "$VENV/bin/pip" install -r /vagrant/djlfs_batch/requirements.txt
+
+echo "Installing (system wide) uWSGI..."
+pip3 install uwsgi
+test -e "/usr/local/bin/uwsgi" || { echo "uWSGI failed to install."; exit 1; }
 
 # Conveniences
 apt-get -y -t stretch install joe bash-completion
@@ -52,13 +57,16 @@ done
 chown -R www-data:www-data "$REPODIR"
 chown -R www-data:www-data "$LFSDIR"
 
-echo "Configuring apache..."
+echo "Configuring nginx..."
+rm -f /etc/nginx/sites-enabled/*
+ln -s /vagrant/wsgi-test/lfs_example_nginx_site /etc/nginx/sites-enabled/
+service nginx reload
 
-cp /vagrant/wsgi-test/lfs_example_apache_site.conf /etc/apache2/sites-available/
-a2enmod cgi
-a2dissite 000-default
-a2ensite lfs_example_apache_site
-systemctl reload apache2
+echo "Configuring Supervisor..."
+rm -f /etc/supervisor/conf.d/*
+ln -s /vagrant/wsgi-test/supervisord_uwsgi.conf /etc/supervisor/conf.d/
+service supervisor restart
+
 
 echo ""
 echo "Provisioning done OK."

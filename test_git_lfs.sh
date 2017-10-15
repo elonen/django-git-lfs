@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [ "x$1" == "x" ]; then
   URL_BASE='http://127.0.0.1:8000'
 else
@@ -50,7 +52,7 @@ git push 2>&1 | indent
 
 echo "Creating some test files..."
 dd if=/dev/urandom bs=1024 count=1024 of=test1.bin 2>&1 | indent
-dd if=/dev/zero bs=2048 count=102400 of=test2.bin 2>&1 | indent
+dd if=/dev/zero bs=6144 count=102400 of=test2.bin 2>&1 | indent
 echo "Commiting them..."
 git add *.bin | indent
 git commit -m "Add some bin files" 2>&1 | indent

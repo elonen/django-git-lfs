@@ -13,6 +13,7 @@ test -e "$VENV/bin/pip" || { echo "FATAL: missing pip from venv!"; exit 1; }
 
 echo "Installing dependencies..."
 "$VENV/bin/pip" install -r djlfs_batch/requirements.txt
+"$VENV/bin/pip" install -r lfs_standalone/requirements.txt
 
 if [ -f $PRJ/db.sqlite3 ]; then
   echo "Migrating DB..."

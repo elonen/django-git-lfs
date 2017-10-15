@@ -89,7 +89,7 @@ class ActionInitView(JsonUtilsMixin, View):
 
                     # Check for missing / already existing files
                     if op=='download' and real_size is None:
-                        raise LfsError('OID not found.', status_code=404)
+                        raise LfsError('Object not found on LFS server. ' + str(get_env_or_django_conf('DJLFS_BATCH_LOCAL_STORAGE_DIR')), status_code=404)
                     elif op=='upload' and  real_size is not None:
                         # User offered to upload object we already have -> omit actions:
                         if real_size == size:
