@@ -42,18 +42,20 @@ The LFS batch server always thinks it's serving files to/from a single LFS repos
 * `DJLFS_BATCH_LOCAL_STORAGE_DIR` – Directory where current LFS repository's content is stored. 
 * `DJLFS_BATCH_LOCAL_STORAGE_HTTP_URL_TEMPLATE_GET` – An URL template to _GET_ LFS objects directly through NGINX, bypassing Django for superior performance. The NGINX configuration example shows how to make it efficiently block download attempts that aren't initiated by the LFS batch request.
 
-## Checking user authorization
+## Checking user permissions (authorization)
 
-Like authentication, this is also left to the HTTPD.
+Like authentication, authorization is also left to the HTTPD.
 
-It sufficies to check authorization for a POST to the batch initialization URI, `/info/lfs/objects/batch`. It provides Git LFS client with a temporary token (in JWT format), that object GET and PUT handlers then check before allowing download or upload.
+It sufficies to check permissions when the Git LFS client makes a POST to the batch initialization URI, `/info/lfs/objects/batch`. The batch initialization provides the client with a temporary stateless token (JWT), that oid GET and PUT handlers then check before allowing download or upload of LFS objects.
+
+While the batch app knows nothing about authorization, there's an independent NGINX `auth_request` compatible authz handler app `djlfs_xattr_id_authz`, that can be used for this purpose. It checks Unix (or Winbind) groups against file permissions (traditional and FACL) on the server. It's completely separate from the LFS batch app, and can just as well be used for any other NGINX based HTTP file server application.
 
 ## Implementation status
 
-* Batch API works and can be used as a Git LFS server
-* Locking API is not implemented, at least yet
+* Batch API works and can be used as a Git LFS server.
+* Locking API is not implemented, at least not yet. Unlike the upload / download API, locking will probably require a database.
 
-This is a fork of https://github.com/ddanier/django-git-lfs , but I'm most likely going to *remove all auth code*.
+This is originally a fork of https://github.com/ddanier/django-git-lfs , but will likely diverge fast.
 
 ## Contributing
 

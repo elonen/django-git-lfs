@@ -8,7 +8,7 @@ echo "Installing APT packages..."
 echo "deb http://deb.debian.org/debian buster main" > /etc/apt/sources.list.d/buster.list
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get -y -t stretch install python3-venv python3-pip nginx openssl apache2-utils fcgiwrap curl supervisor
+apt-get -y -t stretch install python3-venv python3-pip nginx openssl libacl1-dev apache2-utils fcgiwrap curl supervisor
 apt-get -y -t buster install git-lfs
 
 echo "Creating virtualenv..."
@@ -18,7 +18,9 @@ pyvenv "$VENV"
 test -e "$VENV/bin/pip" || { echo "FATAL: missing pip from venv!"; exit 1; }
 
 echo "Installing pip dependencies..."
+"$VENV/bin/pip" install wheel
 "$VENV/bin/pip" install -r /vagrant/djlfs_batch/requirements.txt
+"$VENV/bin/pip" install -r /vagrant/djlfs_xattr_id_authz/requirements.txt
 
 echo "Installing (system wide) uWSGI..."
 pip3 install uwsgi
@@ -58,22 +60,29 @@ for x in "repo1" "repo2" "repo3" ; do
 	  mkdir "$LFSDIR/$x"  || { echo "Failed to create LFS storage dir."; exit 1; }
   fi
 
-	echo "Creating htpasswd Basic credentials: USER$x / PASS$1 ..."
+  if ! id USER$x &> /dev/null ; then
+	echo "Adding unix user & group: USER$x / PASS$1 ..."
+	useradd -p $(openssl passwd -1 PASS$x) USER$x
+	echo "Creating htpasswd Basic credentials for it..."
 	htpasswd -b "$HTPASSWD" USER$x PASS$x
+  fi
+
+  chown -R www-data.USER$x "$REPODIR/$x.git"
+  chmod -R g+ws "$REPODIR/$x.git"
 done
 
-chown -R www-data:www-data "$REPODIR"
+chown www-data:www-data "$REPODIR"
 chown -R www-data:www-data "$LFSDIR"
 
 # Creating SSL keys
 echo "Creating SSL key & cert"
-openssl genrsa -des3 -passout pass:xyz123 -out /root/server.pass.key 2048
-openssl rsa -passin pass:xyz123 -in /root/server.pass.key -out /root/server.key
+openssl genrsa -des3 -passout pass:xyz123 -out /root/server.pass.key 2048 &> /dev/null
+openssl rsa -passin pass:xyz123 -in /root/server.pass.key -out /root/server.key &> /dev/null
 rm /root/server.pass.key
 openssl req -new -key /root/server.key -out /root/server.csr \
-  -subj "/C=UK/ST=Example/L=Example/O=Example/OU=Example/CN=example.com"
-openssl x509 -req -days 365 -in /root/server.csr -signkey /root/server.key -out /root/server.crt
-
+  -subj "/C=UK/ST=Example/L=Example/O=Example/OU=Example/CN=example.com" &> /dev/null
+openssl x509 -req -days 365 -in /root/server.csr -signkey /root/server.key -out /root/server.crt &> /dev/null
+[ -f  /root/server.key -a -f  /root/server.csr ]  || { echo "OpenSSL failed? Key+cert not generated."; exit 1; }
 
 echo "Configuring nginx..."
 rm -f /etc/nginx/sites-enabled/*
