@@ -102,3 +102,26 @@ server {
         proxy_cache_use_stale   updating;
     }
 }
+
+
+# ===============================================================================================================
+# Proxy HTTPS -> HTTP
+
+server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+        server_name lfs;
+
+        # Enable HTTPS
+        ssl on;
+        ssl_certificate /root/server.crt;
+        ssl_certificate_key /root/server.key;
+
+        location / {
+            proxy_pass http://localhost;
+            include /etc/nginx/proxy_params;
+            client_max_body_size           0;      # Disable max size check
+            proxy_request_buffering        off;    # Use streaming upload
+
+        }
+}

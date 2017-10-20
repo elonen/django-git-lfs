@@ -8,7 +8,7 @@ echo "Installing APT packages..."
 echo "deb http://deb.debian.org/debian buster main" > /etc/apt/sources.list.d/buster.list
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get -y -t stretch install python3-venv python3-pip nginx fcgiwrap curl supervisor
+apt-get -y -t stretch install python3-venv python3-pip nginx openssl fcgiwrap curl supervisor
 apt-get -y -t buster install git-lfs
 
 echo "Creating virtualenv..."
@@ -17,7 +17,7 @@ rm -rf "$VENV"
 pyvenv "$VENV"
 test -e "$VENV/bin/pip" || { echo "FATAL: missing pip from venv!"; exit 1; }
 
-echo "Installing dependencies..."
+echo "Installing pip dependencies..."
 "$VENV/bin/pip" install -r /vagrant/djlfs_batch/requirements.txt
 
 echo "Installing (system wide) uWSGI..."
@@ -56,6 +56,16 @@ done
 
 chown -R www-data:www-data "$REPODIR"
 chown -R www-data:www-data "$LFSDIR"
+
+# Creating SSL keys
+echo "Creating SSL key & cert"
+openssl genrsa -des3 -passout pass:xyz123 -out /root/server.pass.key 2048
+openssl rsa -passin pass:xyz123 -in /root/server.pass.key -out /root/server.key
+rm /root/server.pass.key
+openssl req -new -key /root/server.key -out /root/server.csr \
+  -subj "/C=UK/ST=Example/L=Example/O=Example/OU=Example/CN=example.com"
+openssl x509 -req -days 365 -in /root/server.csr -signkey /root/server.key -out /root/server.crt
+
 
 echo "Configuring nginx..."
 rm -f /etc/nginx/sites-enabled/*
