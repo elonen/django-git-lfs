@@ -118,10 +118,20 @@ server {
         ssl_certificate_key /root/server.key;
 
         location / {
-            proxy_pass http://localhost;
-            include /etc/nginx/proxy_params;
+            proxy_pass                     http://localhost;
+            include	                       /etc/nginx/proxy_params;
             client_max_body_size           0;      # Disable max size check
             proxy_request_buffering        off;    # Use streaming upload
 
+            # Require authentication for everything except object transfers (that use tokens from batch init)
+			location ~ ^(?!(/git/[^./]+(\.git)?/info/lfs/objects/(put|get|direct_get)/.*$)) {
+		        auth_basic "LFS example - auth required";
+		        auth_basic_user_file /opt/htpasswd;
+
+	            proxy_pass                     http://localhost;
+	            include                        /etc/nginx/proxy_params;
+	            client_max_body_size           0;      # Disable max size check
+	            proxy_request_buffering        off;    # Use streaming upload
+	        }
         }
 }

@@ -8,7 +8,7 @@ echo "Installing APT packages..."
 echo "deb http://deb.debian.org/debian buster main" > /etc/apt/sources.list.d/buster.list
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get -y -t stretch install python3-venv python3-pip nginx openssl fcgiwrap curl supervisor
+apt-get -y -t stretch install python3-venv python3-pip nginx openssl apache2-utils fcgiwrap curl supervisor
 apt-get -y -t buster install git-lfs
 
 echo "Creating virtualenv..."
@@ -42,6 +42,11 @@ mkdir -p $REPODIR
 LFSDIR=/opt/lfs_storages
 mkdir -p $LFSDIR	
 
+HTPASSWD=/opt/htpasswd
+touch $HTPASSWD
+chown www-data:www-data "$HTPASSWD"
+
+
 for x in "repo1" "repo2" "repo3" ; do
   echo "Creating example repository: $x"
   if [ ! -d "$REPODIR/$x" ]; then
@@ -52,6 +57,9 @@ for x in "repo1" "repo2" "repo3" ; do
   if [ ! -d "$LFSDIR/$x" ]; then
 	  mkdir "$LFSDIR/$x"  || { echo "Failed to create LFS storage dir."; exit 1; }
   fi
+
+	echo "Creating htpasswd Basic credentials: USER$x / PASS$1 ..."
+	htpasswd -b "$HTPASSWD" USER$x PASS$x
 done
 
 chown -R www-data:www-data "$REPODIR"

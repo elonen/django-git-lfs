@@ -6,6 +6,9 @@ if [ "x$1" == "x" ]; then
   URL_BASE='http://127.0.0.1:8000'
 else
   URL_BASE="$1"
+  REPONAME=$(basename "$URL_BASE")
+  echo "Deduced from URL: reponame = '$REPONAME'"
+  REPO_URL=$(echo "$URL_BASE" | sed "s#://#://USER${REPONAME}:PASS${REPONAME}@#")
 fi
 
 GIT="git -c http.sslVerify=false"
@@ -33,7 +36,7 @@ if [ "x$1" == "x" ]; then
 	cd ..
 	$GIT clone bare_repo clone1 2>&1 | indent
 else
-	$GIT clone "$URL_BASE" clone1
+	$GIT clone "$REPO_URL" clone1
 fi
 
 cd clone1
@@ -72,7 +75,7 @@ cd ..
 if [ "x$1" == "x" ]; then
 	$GIT clone bare_repo clone2 2>&1 | indent
 else
-	$GIT clone "$URL_BASE" clone2
+	$GIT clone "$REPO_URL" clone2
 fi
 cd clone2
 
